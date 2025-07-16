@@ -1,0 +1,348 @@
+<html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>必百搜360 - 易白板"自研"引擎</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4F46E5',
+            secondary: '#7C3AED',
+            accent: '#0EA5E9',
+            neutral: '#1F2937',
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .search-shadow {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+      .engine-card {
+        transition: all 0.3s ease;
+      }
+      .engine-card:hover {
+        transform: translateY(-5px);
+      }
+      .search-container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.5s ease;
+      }
+      .results-container {
+        display: none;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      .search-expanded {
+        height: auto;
+        padding: 2rem 0;
+        justify-content: flex-start;
+      }
+      .iframe-container {
+        aspect-ratio: 16/9;
+        min-height: 600px;
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-gray-50 min-h-screen flex flex-col">
+  <!-- 顶部导航栏 -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50 transition-all duration-300" id="header">
+    <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between">
+      <div class="flex items-center mb-4 md:mb-0">
+        <i class="fa fa-search text-primary text-3xl mr-2"></i>
+        <h1 class="text-2xl font-bold text-neutral">必百搜<span class="text-primary">360</span></h1>
+      </div>
+      
+      <!-- 搜索引擎选择器 -->
+      <div class="flex mt-4 md:mt-0">
+        <div class="flex items-center mr-4">
+          <input type="checkbox" id="baiduCheck" class="form-checkbox h-5 w-5 text-blue-600 rounded" checked="">
+          <label for="baiduCheck" class="ml-2 text-sm text-neutral">百度</label>
+        </div>
+        <div class="flex items-center mr-4">
+          <input type="checkbox" id="sogouCheck" class="form-checkbox h-5 w-5 text-red-600 rounded" checked="">
+          <label for="sogouCheck" class="ml-2 text-sm text-neutral">搜狗</label>
+        </div>
+        <div class="flex items-center mr-4">
+          <input type="checkbox" id="bingCheck" class="form-checkbox h-5 w-5 text-secondary rounded" checked="">
+          <label for="bingCheck" class="ml-2 text-sm text-neutral">必应</label>
+        </div>
+        <div class="flex items-center">
+          <input type="checkbox" id="so360Check" class="form-checkbox h-5 w-5 text-accent rounded" checked="">
+          <label for="so360Check" class="ml-2 text-sm text-neutral">360搜索</label>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 初始搜索界面 -->
+  <div id="searchContainer" class="search-container">
+    <div class="max-w-4xl mx-auto text-center mb-8 px-4">
+      <div class="flex items-center justify-center mb-6">
+        <i class="fa fa-search text-primary text-5xl mr-3"></i>
+        <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold text-neutral">必百搜<span class="text-primary">360</span></h1>
+      </div>
+      <p class="text-gray-600 mb-8 text-lg">易白板"自研"引擎，一次性比较多个搜索引擎的结果</p>
+      
+      <div class="relative">
+        <input type="text" id="mainSearchInput" placeholder="输入关键词并按回车搜索..." class="w-full py-4 px-6 pr-14 rounded-full border-2 border-gray-300 focus:border-primary focus:ring-4 focus:ring-primary/20 outline-none transition-all text-xl search-shadow">
+        <button id="mainSearchButton" class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-primary text-white p-3 rounded-full hover:bg-primary/90 transition-all shadow-lg">
+          <i class="fa fa-search text-xl"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搜索结果区域 -->
+  <div id="resultsContainer" class="results-container container mx-auto px-4 py-6 max-w-7xl">
+    <!-- 搜索结果统计 -->
+    <div class="mb-6 text-center">
+      <p id="resultInfo" class="text-gray-500 italic">请输入关键词进行搜索</p>
+    </div>
+    
+    <!-- 搜索引擎结果区域 -->
+    <div id="enginesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <!-- 百度结果 -->
+      <div id="baiduCard" class="bg-white rounded-xl shadow-xl overflow-hidden engine-card flex flex-col">
+        <div class="bg-blue-600 text-white p-4 flex items-center">
+          <i class="fa fa-baidu mr-2 text-xl"></i>
+          <h2 class="font-bold text-lg">百度搜索</h2>
+        </div>
+        <div class="flex-grow relative iframe-container">
+          <iframe id="baiduFrame" src="https://www.baidu.com" class="w-full h-full border-0" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+          <div id="baiduOverlay" class="absolute inset-0 bg-white flex items-center justify-center">
+            <p class="text-gray-500">输入关键词并搜索以显示结果</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 搜狗结果 -->
+      <div id="sogouCard" class="bg-white rounded-xl shadow-xl overflow-hidden engine-card flex flex-col">
+        <div class="bg-red-600 text-white p-4 flex items-center">
+          <i class="fa fa-search mr-2 text-xl"></i>
+          <h2 class="font-bold text-lg">搜狗搜索</h2>
+        </div>
+        <div class="flex-grow relative iframe-container">
+          <iframe id="sogouFrame" src="https://www.sogou.com" class="w-full h-full border-0" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+          <div id="sogouOverlay" class="absolute inset-0 bg-white flex items-center justify-center">
+            <p class="text-gray-500">输入关键词并搜索以显示结果</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 必应结果 -->
+      <div id="bingCard" class="bg-white rounded-xl shadow-xl overflow-hidden engine-card flex flex-col">
+        <div class="bg-purple-600 text-white p-4 flex items-center">
+          <i class="fa fa-search mr-2 text-xl"></i>
+          <h2 class="font-bold text-lg">必应搜索</h2>
+        </div>
+        <div class="flex-grow relative iframe-container">
+          <iframe id="bingFrame" src="https://cn.bing.com" class="w-full h-full border-0" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+          <div id="bingOverlay" class="absolute inset-0 bg-white flex items-center justify-center">
+            <p class="text-gray-500">输入关键词并搜索以显示结果</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 360结果 -->
+      <div id="so360Card" class="bg-white rounded-xl shadow-xl overflow-hidden engine-card flex flex-col">
+        <div class="bg-teal-600 text-white p-4 flex items-center">
+          <i class="fa fa-search-plus mr-2 text-xl"></i>
+          <h2 class="font-bold text-lg">360搜索</h2>
+        </div>
+        <div class="flex-grow relative iframe-container">
+          <iframe id="so360Frame" src="https://www.so.com" class="w-full h-full border-0" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+          <div id="so360Overlay" class="absolute inset-0 bg-white flex items-center justify-center">
+            <p class="text-gray-500">输入关键词并搜索以显示结果</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <footer class="bg-neutral text-white py-6 mt-auto">
+    <div class="container mx-auto px-4">
+      <div class="flex flex-col md:flex-row justify-between items-center">
+        <div class="mb-4 md:mb-0">
+          <p class="text-sm">© 2025 必百搜360.易白板.盐城市鹿鸣路初级中学2024级（16）班袁峻熙 版权所有。</p>
+        </div>
+        <div class="flex space-x-4">
+          <a href="#" class="text-gray-300 hover:text-white transition-colors">
+            <i class="fa fa-github text-xl"></i>
+          </a>
+          <a href="#" class="text-gray-300 hover:text-white transition-colors">
+            <i class="fa fa-twitter text-xl"></i>
+          </a>
+          <a href="#" class="text-gray-300 hover:text-white transition-colors">
+            <i class="fa fa-linkedin text-xl"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 搜索功能实现
+    document.addEventListener('DOMContentLoaded', function() {
+      const mainSearchInput = document.getElementById('mainSearchInput');
+      const mainSearchButton = document.getElementById('mainSearchButton');
+      const resultInfo = document.getElementById('resultInfo');
+      const baiduFrame = document.getElementById('baiduFrame');
+      const sogouFrame = document.getElementById('sogouFrame');
+      const bingFrame = document.getElementById('bingFrame');
+      const so360Frame = document.getElementById('so360Frame');
+      const baiduOverlay = document.getElementById('baiduOverlay');
+      const sogouOverlay = document.getElementById('sogouOverlay');
+      const bingOverlay = document.getElementById('bingOverlay');
+      const so360Overlay = document.getElementById('so360Overlay');
+      const baiduCheck = document.getElementById('baiduCheck');
+      const sogouCheck = document.getElementById('sogouCheck');
+      const bingCheck = document.getElementById('bingCheck');
+      const so360Check = document.getElementById('so360Check');
+      const header = document.getElementById('header');
+      const searchContainer = document.getElementById('searchContainer');
+      const resultsContainer = document.getElementById('resultsContainer');
+      const baiduCard = document.getElementById('baiduCard');
+      const sogouCard = document.getElementById('sogouCard');
+      const bingCard = document.getElementById('bingCard');
+      const so360Card = document.getElementById('so360Card');
+      const enginesGrid = document.getElementById('enginesGrid');
+      
+      // 监听滚动事件，改变导航栏样式
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 10) {
+          header.classList.add('py-2', 'shadow-md');
+          header.classList.remove('py-4');
+        } else {
+          header.classList.add('py-4');
+          header.classList.remove('py-2', 'shadow-md');
+        }
+      });
+      
+      // 切换到结果页面
+      function showResultsPage() {
+        searchContainer.classList.add('search-expanded');
+        resultsContainer.style.display = 'block';
+        
+        // 延迟设置透明度以触发过渡动画
+        setTimeout(() => {
+          resultsContainer.style.opacity = '1';
+        }, 10);
+        
+        // 平滑滚动到结果区域
+        setTimeout(() => {
+          resultsContainer.scrollIntoView({ behavior: 'smooth' });
+        }, 500);
+      }
+      
+      // 搜索功能
+      function performSearch() {
+        const query = mainSearchInput.value.trim();
+        if (!query) {
+          alert('请输入搜索关键词');
+          return;
+        }
+        
+        // 更新结果信息
+        resultInfo.textContent = `正在搜索: "${query}"`;
+        
+        // 显示结果页面
+        showResultsPage();
+        
+        // 百度搜索
+        if (baiduCheck.checked) {
+          baiduFrame.src = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`;
+          baiduOverlay.style.display = 'none';
+        } else {
+          baiduOverlay.style.display = 'flex';
+          baiduFrame.src = 'https://www.baidu.com';
+        }
+        
+        // 搜狗搜索
+        if (sogouCheck.checked) {
+          sogouFrame.src = `https://www.sogou.com/web?query=${encodeURIComponent(query)}`;
+          sogouOverlay.style.display = 'none';
+        } else {
+          sogouOverlay.style.display = 'flex';
+          sogouFrame.src = 'https://www.sogou.com';
+        }
+        
+        // 必应搜索
+        if (bingCheck.checked) {
+          bingFrame.src = `https://cn.bing.com/search?q=${encodeURIComponent(query)}`;
+          bingOverlay.style.display = 'none';
+        } else {
+          bingOverlay.style.display = 'flex';
+          bingFrame.src = 'https://cn.bing.com';
+        }
+        
+        // 360搜索
+        if (so360Check.checked) {
+          so360Frame.src = `https://www.so.com/s?q=${encodeURIComponent(query)}`;
+          so360Overlay.style.display = 'none';
+        } else {
+          so360Overlay.style.display = 'flex';
+          so360Frame.src = 'https://www.so.com';
+        }
+      }
+      
+      // 绑定搜索按钮点击事件
+      mainSearchButton.addEventListener('click', performSearch);
+      
+      // 绑定回车键搜索
+      mainSearchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          performSearch();
+        }
+      });
+      
+      // 监听搜索引擎选择框变化
+      function updateEngineVisibility() {
+        baiduCard.style.display = baiduCheck.checked ? 'block' : 'none';
+        sogouCard.style.display = sogouCheck.checked ? 'block' : 'none';
+        bingCard.style.display = bingCheck.checked ? 'block' : 'none';
+        so360Card.style.display = so360Check.checked ? 'block' : 'none';
+        
+        // 计算可见的搜索引擎数量
+        const checkedCount = 
+          (baiduCheck.checked ? 1 : 0) + 
+          (sogouCheck.checked ? 1 : 0) + 
+          (bingCheck.checked ? 1 : 0) + 
+          (so360Check.checked ? 1 : 0);
+        
+        // 根据可见的搜索引擎数量调整布局
+        enginesGrid.className = 'grid grid-cols-1';
+        if (checkedCount >= 2) enginesGrid.classList.add('md:grid-cols-2');
+        if (checkedCount >= 3) enginesGrid.classList.add('lg:grid-cols-3');
+        if (checkedCount >= 4) enginesGrid.classList.add('lg:grid-cols-4');
+      }
+      
+      baiduCheck.addEventListener('change', updateEngineVisibility);
+      sogouCheck.addEventListener('change', updateEngineVisibility);
+      bingCheck.addEventListener('change', updateEngineVisibility);
+      so360Check.addEventListener('change', updateEngineVisibility);
+      
+      // 初始化显示
+      updateEngineVisibility();
+    });
+  </script>
+
+
+    </body></html>
